@@ -192,7 +192,7 @@
         </div>
         <div id="gameOver">
             <div>GAME OVER</div>
-            <div>Press SPACE to restart</div>
+            <div id="restartInstruction">Press SPACE to restart</div>
         </div>
         <div id="instructions">
             Use ← → arrows to move • SPACE to shoot • ESC to pause
@@ -229,6 +229,9 @@
                 // Calculate scale for touch coordinates
                 const rect = canvas.getBoundingClientRect();
                 canvasScale = canvas.width / rect.width;
+                
+                // Update restart instruction for mobile
+                document.getElementById('restartInstruction').textContent = 'Press FIRE to restart';
             }
         }
         
