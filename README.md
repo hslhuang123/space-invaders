@@ -20,7 +20,7 @@ A classic Space Invaders game built with HTML5 Canvas and JavaScript using [Clau
 
 ## Play Online
 
-[Play the game here](https://yourusername.github.io/space-invaders/)
+[Play the game here](https://hslhuang123.github.io/space-invaders/)
 
 ## Local Setup
 
