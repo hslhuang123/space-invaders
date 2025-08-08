@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>Space Invaders</title>
     <style>
         body {
@@ -12,19 +12,29 @@
             color: #00FF00;
             font-family: 'Courier New', monospace;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
         
         #gameContainer {
             border: 2px solid #00FF00;
             position: relative;
+            max-width: 100vw;
+            max-height: 100vh;
         }
         
         canvas {
             display: block;
             background: #000;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
         
         #gameUI {
@@ -57,6 +67,105 @@
             color: #00FF00;
             font-size: 14px;
         }
+        
+        #mobileControls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 30;
+        }
+        
+        .control-btn {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid #00FF00;
+            background: rgba(0, 255, 0, 0.1);
+            color: #00FF00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .control-btn:active {
+            background: rgba(0, 255, 0, 0.3);
+        }
+        
+        #leftBtn {
+            left: 20px;
+            bottom: 30px;
+        }
+        
+        #rightBtn {
+            left: 100px;
+            bottom: 30px;
+        }
+        
+        #shootBtn {
+            right: 20px;
+            bottom: 30px;
+            width: 80px;
+            height: 80px;
+            font-size: 14px;
+        }
+        
+        #pauseBtn {
+            right: 20px;
+            top: 20px;
+            width: 50px;
+            height: 50px;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            #mobileControls {
+                display: block;
+            }
+            
+            #instructions {
+                display: none;
+            }
+            
+            #gameContainer {
+                border: none;
+            }
+            
+            canvas {
+                width: 100vw;
+                height: calc(100vh - 120px);
+            }
+        }
+        
+        @media (orientation: landscape) and (max-height: 500px) {
+            #mobileControls {
+                height: 80px;
+            }
+            
+            .control-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 14px;
+            }
+            
+            #shootBtn {
+                width: 60px;
+                height: 60px;
+            }
+            
+            canvas {
+                height: calc(100vh - 80px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -74,11 +183,45 @@
         <div id="instructions">
             Use ← → arrows to move • SPACE to shoot • ESC to pause
         </div>
+        
+        <div id="mobileControls">
+            <div id="leftBtn" class="control-btn">←</div>
+            <div id="rightBtn" class="control-btn">→</div>
+            <div id="shootBtn" class="control-btn">FIRE</div>
+        </div>
+        
+        <div id="pauseBtn" class="control-btn">⏸</div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // Mobile detection and setup
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let canvasScale = 1;
+        
+        function setupCanvas() {
+            if (isMobile) {
+                const container = document.getElementById('gameContainer');
+                const mobileControls = document.getElementById('mobileControls');
+                const controlHeight = window.innerHeight <= 500 ? 80 : 120;
+                
+                canvas.style.width = '100vw';
+                canvas.style.height = `calc(100vh - ${controlHeight}px)`;
+                
+                // Calculate scale for touch coordinates
+                const rect = canvas.getBoundingClientRect();
+                canvasScale = canvas.width / rect.width;
+            }
+        }
+        
+        // Touch handling variables
+        let touchState = {
+            left: false,
+            right: false,
+            shoot: false
+        };
         
         // Game constants
         const GAME_WIDTH = canvas.width;
@@ -668,7 +811,80 @@
             keys[e.key] = false;
         });
         
+        // Mobile touch controls
+        function setupMobileControls() {
+            const leftBtn = document.getElementById('leftBtn');
+            const rightBtn = document.getElementById('rightBtn');
+            const shootBtn = document.getElementById('shootBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            
+            // Left button
+            leftBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchState.left = true;
+                keys['ArrowLeft'] = true;
+            });
+            
+            leftBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchState.left = false;
+                keys['ArrowLeft'] = false;
+            });
+            
+            // Right button
+            rightBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchState.right = true;
+                keys['ArrowRight'] = true;
+            });
+            
+            rightBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchState.right = false;
+                keys['ArrowRight'] = false;
+            });
+            
+            // Shoot button
+            shootBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchState.shoot = true;
+                keys[' '] = true;
+                if (gameState.isGameOver) {
+                    resetGame();
+                }
+            });
+            
+            shootBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                touchState.shoot = false;
+                keys[' '] = false;
+            });
+            
+            // Pause button
+            pauseBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                gameState.isPaused = !gameState.isPaused;
+            });
+            
+            // Prevent context menu on long press
+            [leftBtn, rightBtn, shootBtn, pauseBtn].forEach(btn => {
+                btn.addEventListener('contextmenu', (e) => e.preventDefault());
+            });
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            setupCanvas();
+        });
+        
+        // Prevent scroll on touch
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+        
         // Initialize and start game
+        setupCanvas();
+        setupMobileControls();
         initGame();
         gameLoop();
     </script>
