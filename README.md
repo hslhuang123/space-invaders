@@ -1,6 +1,6 @@
 # Space Invaders Game
 
-A classic Space Invaders game built with HTML5 Canvas and JavaScript using Claude Code.
+A classic Space Invaders game built with HTML5 Canvas and JavaScript using [Claude Code](https://docs.anthropic.com/en/docs/claude-code/setup).
 
 ## How to Play
 
