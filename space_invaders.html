@@ -127,6 +127,16 @@
             font-size: 12px;
         }
         
+        #versionLabel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #00FF00;
+            font-size: 12px;
+            opacity: 0.7;
+            z-index: 10;
+        }
+        
         @media (max-width: 768px) {
             #mobileControls {
                 display: block;
@@ -134,6 +144,10 @@
             
             #instructions {
                 display: none;
+            }
+            
+            #versionLabel {
+                bottom: 130px;
             }
             
             #gameContainer {
@@ -191,6 +205,8 @@
         </div>
         
         <div id="pauseBtn" class="control-btn">⏸</div>
+        
+        <div id="versionLabel">v2.0 Mobile</div>
     </div>
 
     <script>
