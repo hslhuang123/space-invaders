@@ -286,6 +286,8 @@
             constructor() {
                 this.sounds = {};
                 this.isMuted = false;
+                this.userMuted = false; // Track user's explicit mute preference
+                this.pauseMuted = false; // Track pause-induced mute
                 this.masterVolume = 0.3;
                 this.musicVolume = 0.2;
                 this.initAudio();
@@ -466,26 +468,54 @@
             }
             
             toggleMute() {
-                this.isMuted = !this.isMuted;
+                this.userMuted = !this.userMuted;
+                this.updateMuteState();
+            }
+            
+            pauseMute() {
+                if (!this.userMuted) { // Only auto-mute if user hasn't manually muted
+                    this.pauseMuted = true;
+                    this.updateMuteState();
+                }
+            }
+            
+            pauseUnmute() {
+                if (this.pauseMuted) { // Only auto-unmute if we auto-muted during pause
+                    this.pauseMuted = false;
+                    this.updateMuteState();
+                }
+            }
+            
+            updateMuteState() {
+                const wasMuted = this.isMuted;
+                this.isMuted = this.userMuted || this.pauseMuted;
                 const muteBtn = document.getElementById('muteBtn');
                 
-                if (this.isMuted) {
+                if (this.isMuted !== wasMuted) {
+                    // State changed, update audio
+                    if (this.isMuted) {
+                        // Stop background music
+                        if (this.musicGain) {
+                            this.musicGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+                        }
+                    } else {
+                        // Resume background music
+                        if (this.musicGain) {
+                            this.musicGain.gain.setValueAtTime(this.musicVolume, this.audioContext.currentTime);
+                        }
+                        if (!gameState.isGameOver && !gameState.isPaused) {
+                            this.startBackgroundMusic();
+                        }
+                    }
+                }
+                
+                // Update button appearance based on user preference only
+                if (this.userMuted) {
                     muteBtn.textContent = '🔇';
                     muteBtn.classList.add('muted');
-                    // Stop background music
-                    if (this.musicGain) {
-                        this.musicGain.gain.setValueAtTime(0, this.audioContext.currentTime);
-                    }
                 } else {
                     muteBtn.textContent = '🔊';
                     muteBtn.classList.remove('muted');
-                    // Resume background music
-                    if (this.musicGain) {
-                        this.musicGain.gain.setValueAtTime(this.musicVolume, this.audioContext.currentTime);
-                    }
-                    if (!gameState.isGameOver) {
-                        this.startBackgroundMusic();
-                    }
                 }
             }
         }
@@ -1077,7 +1107,17 @@
             keys[e.key] = true;
             
             if (e.key === 'Escape') {
+                const wasPaused = gameState.isPaused;
                 gameState.isPaused = !gameState.isPaused;
+                
+                // Handle audio during pause
+                if (gameState.isPaused && !wasPaused) {
+                    // Just paused - mute audio if not already user-muted
+                    audioManager.pauseMute();
+                } else if (!gameState.isPaused && wasPaused) {
+                    // Just unpaused - unmute audio if we auto-muted it
+                    audioManager.pauseUnmute();
+                }
             }
             
             if (e.key === ' ' && gameState.isGameOver) {
@@ -1159,7 +1199,18 @@
                 e.preventDefault();
                 e.stopPropagation();
                 if (pauseTouchStarted) {
+                    const wasPaused = gameState.isPaused;
                     gameState.isPaused = !gameState.isPaused;
+                    
+                    // Handle audio during pause
+                    if (gameState.isPaused && !wasPaused) {
+                        // Just paused - mute audio if not already user-muted
+                        audioManager.pauseMute();
+                    } else if (!gameState.isPaused && wasPaused) {
+                        // Just unpaused - unmute audio if we auto-muted it
+                        audioManager.pauseUnmute();
+                    }
+                    
                     pauseTouchStarted = false;
                 }
             });
@@ -1171,7 +1222,17 @@
             pauseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 if (!isMobile) {
+                    const wasPaused = gameState.isPaused;
                     gameState.isPaused = !gameState.isPaused;
+                    
+                    // Handle audio during pause
+                    if (gameState.isPaused && !wasPaused) {
+                        // Just paused - mute audio if not already user-muted
+                        audioManager.pauseMute();
+                    } else if (!gameState.isPaused && wasPaused) {
+                        // Just unpaused - unmute audio if we auto-muted it
+                        audioManager.pauseUnmute();
+                    }
                 }
             });
             
@@ -1237,14 +1298,18 @@
                 console.log('Audio not supported, continuing without sound');
                 // Create a dummy audio manager for browsers that don't support Web Audio API
                 audioManager = {
+                    userMuted: false,
                     playShoot: () => {},
                     playExplosion: () => {},
                     playInvaderMove: () => {},
                     playGameOver: () => {},
                     playLevelUp: () => {},
-                    toggleMute: () => {
+                    pauseMute: () => {},
+                    pauseUnmute: () => {},
+                    toggleMute: function() {
+                        this.userMuted = !this.userMuted;
                         const muteBtn = document.getElementById('muteBtn');
-                        if (muteBtn.textContent === '🔊') {
+                        if (this.userMuted) {
                             muteBtn.textContent = '🔇';
                             muteBtn.classList.add('muted');
                         } else {
