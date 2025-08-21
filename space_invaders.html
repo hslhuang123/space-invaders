@@ -1101,12 +1101,14 @@
             // Left button
             leftBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 touchState.left = true;
                 keys['ArrowLeft'] = true;
             });
             
             leftBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 touchState.left = false;
                 keys['ArrowLeft'] = false;
             });
@@ -1114,12 +1116,14 @@
             // Right button
             rightBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 touchState.right = true;
                 keys['ArrowRight'] = true;
             });
             
             rightBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 touchState.right = false;
                 keys['ArrowRight'] = false;
             });
@@ -1127,6 +1131,7 @@
             // Shoot button
             shootBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 touchState.shoot = true;
                 keys[' '] = true;
                 if (gameState.isGameOver) {
@@ -1136,6 +1141,7 @@
             
             shootBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 touchState.shoot = false;
                 keys[' '] = false;
             });
@@ -1199,9 +1205,13 @@
                 }
             });
             
-            // Prevent context menu on long press
+            // Prevent context menu on long press and add touch isolation
             [leftBtn, rightBtn, shootBtn, pauseBtn, muteBtn].forEach(btn => {
                 btn.addEventListener('contextmenu', (e) => e.preventDefault());
+                // Add touch isolation to prevent interference
+                btn.addEventListener('touchmove', (e) => {
+                    e.stopPropagation();
+                });
             });
         }
         
@@ -1210,9 +1220,13 @@
             setupCanvas();
         });
         
-        // Prevent scroll on touch
+        // Prevent scroll on touch (except for button interactions)
         document.addEventListener('touchmove', (e) => {
-            e.preventDefault();
+            // Only prevent default if not touching control buttons
+            const target = e.target;
+            if (!target.classList.contains('control-btn') && target.id !== 'muteBtn') {
+                e.preventDefault();
+            }
         }, { passive: false });
         
         // Initialize audio and start game
