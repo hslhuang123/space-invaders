@@ -90,7 +90,123 @@ Works on all devices - desktop, tablet, and mobile!
 - 🛡️ Destructible barriers
 - 🎯 Classic Space Invaders gameplay mechanics
 
+## 🏗️ Architecture Design
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SPACE INVADERS v3.3                         │
+│                   Mobile & Sound Edition                        │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        UI LAYER                                │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │   Desktop   │  │   Mobile    │  │   Audio     │            │
+│  │  Controls   │  │  Controls   │  │  Controls   │            │
+│  │             │  │             │  │             │            │
+│  │ ← → SPACE   │  │ ← → FIRE    │  │    🔊/🔇    │            │
+│  │    ESC      │  │    ⏸       │  │             │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      GAME ENGINE                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐ │
+│  │   Game State    │    │   Game Loop     │    │   Event     │ │
+│  │                 │    │                 │    │  Handlers   │ │
+│  │ • Player        │◄──►│ • Update Logic  │◄──►│             │ │
+│  │ • Invaders      │    │ • Render Loop   │    │ • Keyboard  │ │
+│  │ • Bullets       │    │ • Collision     │    │ • Touch     │ │
+│  │ • Barriers      │    │ • Physics       │    │ • Click     │ │
+│  │ • Particles     │    │                 │    │             │ │
+│  │ • Score/Lives   │    │                 │    │             │ │
+│  └─────────────────┘    └─────────────────┘    └─────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     GAME OBJECTS                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │   Player    │  │  Invaders   │  │   Bullets   │            │
+│  │             │  │             │  │             │            │
+│  │ • Position  │  │ • Position  │  │ • Position  │            │
+│  │ • Movement  │  │ • Animation │  │ • Velocity  │            │
+│  │ • Shooting  │  │ • AI Logic  │  │ • Collision │            │
+│  │ • Drawing   │  │ • Formation │  │ • Drawing   │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │  Barriers   │  │ Particles   │  │   Canvas    │            │
+│  │             │  │             │  │  Renderer   │            │
+│  │ • Structure │  │ • Effects   │  │             │            │
+│  │ • Damage    │  │ • Animation │  │ • Graphics  │            │
+│  │ • Collision │  │ • Lifecycle │  │ • Scaling   │            │
+│  │ • Drawing   │  │ • Drawing   │  │ • Mobile    │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     AUDIO SYSTEM                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                AudioManager                                 │ │
+│  │                                                             │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │ │
+│  │  │   Sound     │  │  Background │  │   Volume    │        │ │
+│  │  │  Effects    │  │    Music    │  │  Control    │        │ │
+│  │  │             │  │             │  │             │        │ │
+│  │  │ • Shooting  │  │ • Melodic   │  │ • Master    │        │ │
+│  │  │ • Explosion │  │   Loop      │  │ • Mute/     │        │ │
+│  │  │ • Invader   │  │ • Dynamic   │  │   Unmute    │        │ │
+│  │  │   Movement  │  │   Generation│  │ • Progressive│       │ │
+│  │  │ • Game Over │  │             │  │   Volume    │        │ │
+│  │  │ • Level Up  │  │             │  │             │        │ │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘        │ │
+│  │                                                             │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                Web Audio API                                │ │
+│  │                                                             │ │
+│  │  • Oscillators    • Gain Nodes    • Audio Context         │ │
+│  │  • Noise Generation • Filters    • Procedural Synthesis   │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATA FLOW                                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  User Input → Event Handlers → Game State Update →             │
+│  Object Updates → Collision Detection → Audio Triggers →       │
+│  Canvas Rendering → Display Update → Next Frame                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  KEY FEATURES                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  🎮 Cross-Platform      📱 Mobile Optimized   🔊 Web Audio      │
+│  🎯 Classic Gameplay    💥 Particle Effects   🎵 Retro Sounds   │
+│  🛡️ Destructible       ⚡ Progressive        🔇 Mute Control   │
+│     Barriers              Difficulty            & Volume       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## 👨‍💻 Credits
 
-**Developed by Leo. H.**  
+**Developed by Hector H.**  
 Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code/setup) - AI-powered development environment
