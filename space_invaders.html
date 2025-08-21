@@ -199,7 +199,7 @@
             }
         }
         
-        @media (orientation: landscape) and (max-width: 768px) {
+        @media (orientation: landscape) {
             body {
                 flex-direction: row;
                 align-items: center;
@@ -230,38 +230,47 @@
             
             #leftBtn {
                 position: fixed !important;
-                right: 80px !important;
+                right: 160px !important;
                 top: 50% !important;
                 transform: translateY(-50%) !important;
-                width: 55px !important;
-                height: 55px !important;
-                font-size: 16px !important;
+                width: 60px !important;
+                height: 60px !important;
+                font-size: 18px !important;
                 z-index: 1000 !important;
                 display: flex !important;
+                background: rgba(255, 0, 0, 0.8) !important;
+                border: 3px solid #FF0000 !important;
+                color: white !important;
             }
             
             #rightBtn {
                 position: fixed !important;
-                right: 20px !important;
+                right: 80px !important;
                 top: 50% !important;
                 transform: translateY(-50%) !important;
-                width: 55px !important;
-                height: 55px !important;
-                font-size: 16px !important;
+                width: 60px !important;
+                height: 60px !important;
+                font-size: 18px !important;
                 z-index: 1000 !important;
                 display: flex !important;
+                background: rgba(255, 0, 0, 0.8) !important;
+                border: 3px solid #FF0000 !important;
+                color: white !important;
             }
             
             #shootBtn {
                 position: fixed !important;
-                right: 50px !important;
-                top: 60% !important;
+                right: 120px !important;
+                top: 70% !important;
                 transform: translateY(-50%) !important;
-                width: 70px !important;
-                height: 70px !important;
-                font-size: 14px !important;
+                width: 80px !important;
+                height: 80px !important;
+                font-size: 16px !important;
                 z-index: 1000 !important;
                 display: flex !important;
+                background: rgba(255, 255, 0, 0.9) !important;
+                border: 3px solid #FFFF00 !important;
+                color: black !important;
             }
             
             #pauseBtn {
@@ -290,9 +299,12 @@
             #versionLabel {
                 position: fixed;
                 bottom: 10px;
-                right: 20px;
-                font-size: 10px;
+                left: 20px;
+                font-size: 12px;
                 z-index: 1000;
+                background: rgba(0, 0, 0, 0.7);
+                padding: 5px;
+                border-radius: 3px;
             }
             
             #gameUI {
@@ -390,7 +402,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v4.6 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
+        <div id="versionLabel">v4.7 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
     </div>
 
     <script>
