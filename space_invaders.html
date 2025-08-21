@@ -349,7 +349,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v3.9 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
+        <div id="versionLabel">v4.0 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
     </div>
 
     <script>
@@ -400,9 +400,11 @@
             constructor() {
                 this.sounds = {};
                 this.isMuted = false;
-                this.masterVolume = 0.3;
-                this.musicVolume = 0.2;
+                // Increase volume for mobile speakers
+                this.masterVolume = isMobile ? 0.6 : 0.3;
+                this.musicVolume = isMobile ? 0.4 : 0.2;
                 this.lastVolumeUpdate = 0;
+                this.audioContextResumed = false;
                 this.initAudio();
             }
             
@@ -410,11 +412,37 @@
                 // Create audio contexts and oscillators for retro sounds
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
+                // Force audio context to resume (required for mobile)
+                this.resumeAudioContext();
+                
                 // Background music
                 this.createBackgroundMusic();
                 
                 // Sound effects
                 this.setupSoundEffects();
+            }
+            
+            resumeAudioContext() {
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().then(() => {
+                        console.log('Audio context resumed');
+                        this.audioContextResumed = true;
+                    });
+                }
+                
+                // Set audio context to route to speakers for mobile
+                if (this.audioContext.destination) {
+                    this.audioContext.destination.channelCount = 2;
+                    this.audioContext.destination.channelCountMode = 'explicit';
+                    this.audioContext.destination.channelInterpretation = 'speakers';
+                }
+            }
+            
+            ensureAudioContextActive() {
+                if (this.audioContext.state === 'suspended') {
+                    this.resumeAudioContext();
+                }
+                return this.audioContext.state === 'running';
             }
             
             createBackgroundMusic() {
@@ -498,7 +526,7 @@
             }
             
             playShoot() {
-                if (this.isMuted) return;
+                if (this.isMuted || !this.ensureAudioContextActive()) return;
                 
                 const oscillator = this.audioContext.createOscillator();
                 const gain = this.audioContext.createGain();
@@ -518,7 +546,7 @@
             }
             
             playExplosion() {
-                if (this.isMuted) return;
+                if (this.isMuted || !this.ensureAudioContextActive()) return;
                 
                 // Create explosion sound with noise
                 const bufferSize = this.audioContext.sampleRate * 0.3;
@@ -550,7 +578,7 @@
             }
             
             playInvaderMove(dropCount = 0, closestInvaderY = 0, playerY = 0) {
-                if (this.isMuted) return;
+                if (this.isMuted || !this.ensureAudioContextActive()) return;
                 
                 const oscillator = this.audioContext.createOscillator();
                 const gain = this.audioContext.createGain();
@@ -614,7 +642,7 @@
             }
             
             playGameOver() {
-                if (this.isMuted) return;
+                if (this.isMuted || !this.ensureAudioContextActive()) return;
                 
                 const oscillator = this.audioContext.createOscillator();
                 const gain = this.audioContext.createGain();
@@ -634,7 +662,7 @@
             }
             
             playLevelUp() {
-                if (this.isMuted) return;
+                if (this.isMuted || !this.ensureAudioContextActive()) return;
                 
                 const notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
                 
@@ -1333,6 +1361,9 @@
             leftBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (audioManager && audioManager.audioContext) {
+                    audioManager.resumeAudioContext();
+                }
                 touchState.left = true;
                 keys['ArrowLeft'] = true;
             });
@@ -1348,6 +1379,9 @@
             rightBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (audioManager && audioManager.audioContext) {
+                    audioManager.resumeAudioContext();
+                }
                 touchState.right = true;
                 keys['ArrowRight'] = true;
             });
@@ -1363,6 +1397,9 @@
             shootBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (audioManager && audioManager.audioContext) {
+                    audioManager.resumeAudioContext();
+                }
                 touchState.shoot = true;
                 keys[' '] = true;
                 if (gameState.isGameOver) {
@@ -1383,6 +1420,9 @@
             pauseBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (audioManager && audioManager.audioContext) {
+                    audioManager.resumeAudioContext();
+                }
                 pauseTouchStarted = true;
             });
             
@@ -1413,6 +1453,9 @@
             muteBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (audioManager && audioManager.audioContext) {
+                    audioManager.resumeAudioContext();
+                }
                 muteTouchStarted = true;
             });
             
@@ -1516,7 +1559,13 @@
         
         // Start game on user interaction (required for audio context)
         document.addEventListener('click', initAudioAndStartGame);
-        document.addEventListener('touchstart', initAudioAndStartGame);
+        document.addEventListener('touchstart', (e) => {
+            // Ensure audio context is activated on any touch
+            if (audioManager && audioManager.audioContext) {
+                audioManager.resumeAudioContext();
+            }
+            initAudioAndStartGame(e);
+        });
         document.addEventListener('keydown', initAudioAndStartGame);
         
         // Fallback: start game after a short delay if no interaction
