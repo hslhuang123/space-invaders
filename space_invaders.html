@@ -77,6 +77,10 @@
             display: none;
             background: rgba(0, 0, 0, 0.8);
             z-index: 30;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
         }
         
         .control-btn {
@@ -195,24 +199,124 @@
             }
         }
         
-        @media (orientation: landscape) and (max-height: 500px) {
+        @media (orientation: landscape) {
+            body {
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            #gameContainer {
+                width: 100vw;
+                height: 100vh;
+                max-width: none;
+                max-height: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            canvas {
+                width: auto;
+                height: 100vh;
+                max-width: calc(100vh * 4/3); /* Maintain 4:3 aspect ratio */
+                object-fit: contain;
+            }
+            
             #mobileControls {
+                height: 100vh;
+                width: 150px;
+                right: 0;
+                bottom: 0;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.9);
+                border-left: 2px solid #00FF00;
+            }
+            
+            #leftBtn, #rightBtn {
+                position: static;
+                margin: 10px;
+                width: 60px;
+                height: 60px;
+            }
+            
+            #shootBtn {
+                position: static;
+                margin: 20px;
+                width: 80px;
                 height: 80px;
+            }
+            
+            #pauseBtn {
+                right: 160px;
+                top: 20px;
+            }
+            
+            #audioControls {
+                right: 160px;
+                top: 20px;
+            }
+            
+            #versionLabel {
+                bottom: 10px;
+                right: 160px;
+            }
+            
+            #gameUI {
+                top: 10px;
+                left: 20px;
+                z-index: 15;
+            }
+            
+            #instructions {
+                display: none;
+            }
+        }
+        
+        @media (orientation: landscape) and (max-height: 500px) {
+            canvas {
+                height: 100vh;
+                max-width: calc(100vh * 4/3);
+            }
+            
+            #mobileControls {
+                width: 120px;
             }
             
             .control-btn {
                 width: 50px;
                 height: 50px;
                 font-size: 14px;
+                margin: 8px;
             }
             
             #shootBtn {
                 width: 60px;
                 height: 60px;
+                margin: 15px;
             }
             
-            canvas {
-                height: calc(100vh - 80px);
+            #pauseBtn {
+                right: 130px;
+                width: 40px;
+                height: 40px;
+            }
+            
+            #audioControls {
+                right: 130px;
+            }
+            
+            #muteBtn {
+                width: 40px;
+                height: 40px;
+                font-size: 14px;
+            }
+            
+            #versionLabel {
+                right: 130px;
+                font-size: 10px;
             }
         }
     </style>
@@ -245,7 +349,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v3.5 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
+        <div id="versionLabel">v3.9 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
     </div>
 
     <script>
@@ -260,10 +364,20 @@
             if (isMobile) {
                 const container = document.getElementById('gameContainer');
                 const mobileControls = document.getElementById('mobileControls');
-                const controlHeight = window.innerHeight <= 500 ? 80 : 120;
+                const isLandscape = window.innerWidth > window.innerHeight;
                 
-                canvas.style.width = '100vw';
-                canvas.style.height = `calc(100vh - ${controlHeight}px)`;
+                if (isLandscape) {
+                    // Landscape mode: canvas takes most width, controls on right
+                    canvas.style.width = 'auto';
+                    canvas.style.height = '100vh';
+                    canvas.style.maxWidth = 'calc(100vh * 4/3)';
+                } else {
+                    // Portrait mode: canvas takes most height, controls at bottom
+                    const controlHeight = window.innerHeight <= 500 ? 80 : 120;
+                    canvas.style.width = '100vw';
+                    canvas.style.height = `calc(100vh - ${controlHeight}px)`;
+                    canvas.style.maxWidth = '100vw';
+                }
                 
                 // Calculate scale for touch coordinates
                 const rect = canvas.getBoundingClientRect();
@@ -288,6 +402,7 @@
                 this.isMuted = false;
                 this.masterVolume = 0.3;
                 this.musicVolume = 0.2;
+                this.lastVolumeUpdate = 0;
                 this.initAudio();
             }
             
@@ -309,6 +424,39 @@
                 this.musicGain.connect(this.audioContext.destination);
                 
                 this.startBackgroundMusic();
+            }
+            
+            updateBackgroundMusicVolume(bottomMostInvaderY = 0, playerY = 0) {
+                if (this.isMuted || !this.musicGain) return;
+                
+                // Throttle updates to prevent too many rapid changes
+                const now = this.audioContext.currentTime;
+                if (now - this.lastVolumeUpdate < 0.1) return; // Update max every 0.1 seconds
+                this.lastVolumeUpdate = now;
+                
+                // Calculate proximity-based volume using bottom-most invader
+                const gameHeight = 600;
+                const safePlayerY = playerY || (gameHeight - 50); // Player near bottom (around Y=550)
+                const safeInvaderY = bottomMostInvaderY || 100; // Default invader near top
+                
+                // Distance calculation: player Y - bottom invader Y 
+                const distanceFromPlayer = Math.max(0, safePlayerY - safeInvaderY);
+                const maxDistance = 350; // Adjusted for better scaling
+                
+                // More aggressive proximity ratio calculation
+                let proximityRatio = 1 - Math.min(distanceFromPlayer / maxDistance, 1);
+                
+                // Apply exponential curve for more dramatic changes
+                proximityRatio = Math.pow(proximityRatio, 0.6); // Even more dramatic curve
+                proximityRatio = Math.max(proximityRatio, 0.15); // Slightly higher minimum
+                
+                // Much more dramatic volume scaling
+                const minVolume = this.musicVolume * 0.15; // 15% of original when far (very quiet)
+                const maxVolume = this.musicVolume * 2.0; // 200% of original when very close (much louder)
+                const targetVolume = minVolume + (proximityRatio * (maxVolume - minVolume));
+                
+                // Set volume immediately for more responsive feel
+                this.musicGain.gain.setValueAtTime(targetVolume, this.audioContext.currentTime);
             }
             
             startBackgroundMusic() {
@@ -1042,11 +1190,11 @@
                     invader.y += INVADER_DROP_SPEED;
                 }
                 
-                // Find closest invader to player for dramatic audio effect
-                let closestInvaderY = 0;
+                // Find bottom-most invader to player for dramatic audio effect
+                let bottomMostInvaderY = 0;
                 if (gameState.invaders.length > 0) {
-                    // Find the lowest Y position (closest to player)
-                    closestInvaderY = Math.max(...gameState.invaders.map(inv => inv.y + inv.height));
+                    // Find the lowest Y position (closest to player) - bottom of the formation
+                    bottomMostInvaderY = Math.max(...gameState.invaders.map(inv => inv.y + inv.height));
                 }
                 
                 // Ensure we have valid player position
@@ -1054,7 +1202,7 @@
                 
                 audioManager.playInvaderMove(
                     gameState.invaderDropCount, 
-                    closestInvaderY, 
+                    bottomMostInvaderY, 
                     playerY
                 );
             } else {
@@ -1105,6 +1253,13 @@
                 
                 // Update particles
                 gameState.particles = gameState.particles.filter(particle => particle.update());
+                
+                // Update background music volume based on invader proximity
+                if (gameState.invaders.length > 0 && gameState.player) {
+                    // Find the bottom-most invader (closest to player)
+                    const bottomMostInvaderY = Math.max(...gameState.invaders.map(inv => inv.y + inv.height));
+                    audioManager.updateBackgroundMusicVolume(bottomMostInvaderY, gameState.player.y);
+                }
                 
                 // Check collisions
                 checkCollisions();
@@ -1291,9 +1446,16 @@
             });
         }
         
-        // Handle window resize
+        // Handle window resize and orientation change
         window.addEventListener('resize', () => {
             setupCanvas();
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            // Wait a bit for the orientation change to complete
+            setTimeout(() => {
+                setupCanvas();
+            }, 100);
         });
         
         // Prevent scroll on touch (except for button interactions)
@@ -1322,6 +1484,7 @@
                     playInvaderMove: (dropCount, closestInvaderY, playerY) => {},
                     playGameOver: () => {},
                     playLevelUp: () => {},
+                    updateBackgroundMusicVolume: (bottomMostInvaderY, playerY) => {},
                     toggleMute: () => {
                         const muteBtn = document.getElementById('muteBtn');
                         if (muteBtn.textContent === '🔊') {
