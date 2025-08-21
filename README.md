@@ -208,5 +208,5 @@ Works on all devices - desktop, tablet, and mobile!
 
 ## 👨‍💻 Credits
 
-**Developed by Hector H.**  
+**Developed by 时力**  
 Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code/setup) - AI-powered development environment

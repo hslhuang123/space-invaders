@@ -245,7 +245,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v3.4 Mobile & Sound<br><div style="text-align: right;">Hector H.</div></div>
+        <div id="versionLabel">v3.5 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
     </div>
 
     <script>
@@ -410,40 +410,53 @@
                 oscillator.connect(gain);
                 gain.connect(this.audioContext.destination);
                 
-                // Calculate distance-based intensity
+                // Calculate distance-based intensity with better mobile compatibility
                 const gameHeight = 600; // Canvas height
-                const distanceFromPlayer = Math.max(0, playerY - closestInvaderY);
-                const maxDistance = gameHeight - 100; // Maximum reasonable distance
-                const proximityRatio = 1 - Math.min(distanceFromPlayer / maxDistance, 1);
+                const safePlayerY = playerY || (gameHeight - 50); // Fallback if player Y is missing
+                const safeInvaderY = closestInvaderY || 100; // Fallback if invader Y is missing
                 
-                // Calculate dramatic volume based on proximity and drop count
+                const distanceFromPlayer = Math.max(0, safePlayerY - safeInvaderY);
+                const maxDistance = gameHeight - 150; // Adjusted for better scaling
+                let proximityRatio = 1 - Math.min(distanceFromPlayer / maxDistance, 1);
+                
+                // Ensure minimum proximity effect and better scaling
+                proximityRatio = Math.max(proximityRatio, 0.1); // Minimum 10% proximity
+                proximityRatio = Math.min(proximityRatio, 1.0); // Maximum 100% proximity
+                
+                // More dramatic volume scaling
                 let baseVolume;
-                if (dropCount < 8) {
-                    // Very quiet when far, building tension
-                    baseVolume = 0.01 + (dropCount * 0.005); // Start very soft
+                if (dropCount < 5) {
+                    // Start even quieter but more noticeable progression
+                    baseVolume = 0.015 + (dropCount * 0.008); 
+                } else if (dropCount < 10) {
+                    // Medium intensity
+                    baseVolume = 0.055 + ((dropCount - 5) * 0.012);
                 } else {
-                    // More dramatic after 8 drops
-                    baseVolume = 0.05 + ((dropCount - 8) * 0.015);
+                    // High intensity
+                    baseVolume = 0.115 + ((dropCount - 10) * 0.020);
                 }
                 
-                // Apply dramatic proximity multiplier
-                let volumeMultiplier = baseVolume * (0.3 + (proximityRatio * 2.0)); // 0.3x to 2.3x based on distance
-                volumeMultiplier = Math.min(volumeMultiplier, 0.4); // Cap at 0.4 for max drama
+                // Apply more dramatic proximity multiplier
+                let volumeMultiplier = baseVolume * (0.2 + (proximityRatio * 3.0)); // 0.2x to 3.2x based on distance
+                volumeMultiplier = Math.min(volumeMultiplier, 0.5); // Higher cap for mobile
+                
+                // Ensure minimum audible volume
+                volumeMultiplier = Math.max(volumeMultiplier, 0.02);
                 
                 // Frequency increases with proximity and drops for growing tension
-                const baseFreq = 120;
-                const proximityFreqBoost = proximityRatio * 80; // Up to 80Hz boost when close
-                const dropFreqBoost = dropCount * 3; // 3Hz per drop
+                const baseFreq = 100;
+                const proximityFreqBoost = proximityRatio * 100; // Up to 100Hz boost when close
+                const dropFreqBoost = dropCount * 4; // 4Hz per drop
                 const frequency = baseFreq + proximityFreqBoost + dropFreqBoost;
                 
                 // Make sound more menacing when close
-                const soundType = proximityRatio > 0.7 ? 'sawtooth' : 'square';
+                const soundType = proximityRatio > 0.6 ? 'sawtooth' : 'square';
                 
                 oscillator.frequency.value = frequency;
                 oscillator.type = soundType;
                 
                 // Longer duration when closer for more dramatic effect
-                const duration = 0.08 + (proximityRatio * 0.04); // 0.08s to 0.12s
+                const duration = 0.1 + (proximityRatio * 0.06); // 0.1s to 0.16s
                 
                 gain.gain.setValueAtTime(this.masterVolume * volumeMultiplier, this.audioContext.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
@@ -1030,13 +1043,19 @@
                 }
                 
                 // Find closest invader to player for dramatic audio effect
-                let closestInvaderY = gameState.invaders.length > 0 ? 
-                    Math.max(...gameState.invaders.map(inv => inv.y)) : 0;
+                let closestInvaderY = 0;
+                if (gameState.invaders.length > 0) {
+                    // Find the lowest Y position (closest to player)
+                    closestInvaderY = Math.max(...gameState.invaders.map(inv => inv.y + inv.height));
+                }
+                
+                // Ensure we have valid player position
+                const playerY = gameState.player ? gameState.player.y : (GAME_HEIGHT - 50);
                 
                 audioManager.playInvaderMove(
                     gameState.invaderDropCount, 
                     closestInvaderY, 
-                    gameState.player.y
+                    playerY
                 );
             } else {
                 for (const invader of gameState.invaders) {
