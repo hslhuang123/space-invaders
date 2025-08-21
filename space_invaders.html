@@ -245,7 +245,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v3.0 Mobile & Sound<br><div style="text-align: right;">Leo. H.</div></div>
+        <div id="versionLabel">v3.0 Mobile & Sound<br><div style="text-align: right;">Hector H.</div></div>
     </div>
 
     <script>
@@ -1141,28 +1141,60 @@
             });
             
             // Pause button
+            let pauseTouchStarted = false;
+            
             pauseBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                gameState.isPaused = !gameState.isPaused;
+                e.stopPropagation();
+                pauseTouchStarted = true;
+            });
+            
+            pauseBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (pauseTouchStarted) {
+                    gameState.isPaused = !gameState.isPaused;
+                    pauseTouchStarted = false;
+                }
+            });
+            
+            pauseBtn.addEventListener('touchcancel', (e) => {
+                pauseTouchStarted = false;
             });
             
             pauseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                gameState.isPaused = !gameState.isPaused;
+                if (!isMobile) {
+                    gameState.isPaused = !gameState.isPaused;
+                }
             });
             
             // Mute button
             const muteBtn = document.getElementById('muteBtn');
-            muteBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (audioManager && audioManager.toggleMute) {
-                    audioManager.toggleMute();
-                }
-            });
+            let muteTouchStarted = false;
             
             muteBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (audioManager && audioManager.toggleMute) {
+                e.stopPropagation();
+                muteTouchStarted = true;
+            });
+            
+            muteBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (muteTouchStarted && audioManager && audioManager.toggleMute) {
+                    audioManager.toggleMute();
+                    muteTouchStarted = false;
+                }
+            });
+            
+            muteBtn.addEventListener('touchcancel', (e) => {
+                muteTouchStarted = false;
+            });
+            
+            muteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!isMobile && audioManager && audioManager.toggleMute) {
                     audioManager.toggleMute();
                 }
             });
