@@ -245,7 +245,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v3.1 Mobile & Sound<br><div style="text-align: right;">Hector H.</div></div>
+        <div id="versionLabel">v3.2 Mobile & Sound<br><div style="text-align: right;">Hector H.</div></div>
     </div>
 
     <script>
@@ -1020,7 +1020,11 @@
         }
         
         // Game loop
+        let gameLoopRunning = false;
         function gameLoop() {
+            if (gameLoopRunning) return; // Prevent multiple game loops
+            gameLoopRunning = true;
+            
             if (!gameState.isPaused && !gameState.isGameOver) {
                 // Update
                 gameState.player.update();
@@ -1069,6 +1073,7 @@
                 ctx.textAlign = 'left';
             }
             
+            gameLoopRunning = false; // Reset flag for next frame
             requestAnimationFrame(gameLoop);
         }
         
@@ -1092,7 +1097,11 @@
         });
         
         // Mobile touch controls
+        let mobileControlsSetup = false;
         function setupMobileControls() {
+            if (mobileControlsSetup) return; // Prevent duplicate setup
+            mobileControlsSetup = true;
+            
             const leftBtn = document.getElementById('leftBtn');
             const rightBtn = document.getElementById('rightBtn');
             const shootBtn = document.getElementById('shootBtn');
@@ -1230,7 +1239,11 @@
         }, { passive: false });
         
         // Initialize audio and start game
+        let gameStartedOnce = false;
         function startGame() {
+            if (gameStartedOnce) return; // Prevent multiple initializations
+            gameStartedOnce = true;
+            
             try {
                 audioManager = new AudioManager();
             } catch (error) {
