@@ -92,9 +92,9 @@ Works on all devices - desktop, tablet, and mobile!
 
 ## 🏗️ Architecture Design
 
-```
+<pre>
 ┌─────────────────────────────────────────────────────────────────┐
-│                    SPACE INVADERS v3.3                         │
+│                    SPACE INVADERS v4.1                         │
 │                   Mobile & Sound Edition                        │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -204,7 +204,7 @@ Works on all devices - desktop, tablet, and mobile!
 │     Barriers              Difficulty            & Volume       │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
-```
+</pre>
 
 ## 👨‍💻 Credits
 
