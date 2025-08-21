@@ -120,7 +120,7 @@
         }
         
         #pauseBtn {
-            right: 20px;
+            right: 80px;
             top: 20px;
             width: 50px;
             height: 50px;
@@ -135,6 +135,41 @@
             font-size: 12px;
             opacity: 0.7;
             z-index: 10;
+        }
+        
+        #audioControls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+        }
+        
+        #muteBtn {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #00FF00;
+            background: rgba(0, 255, 0, 0.1);
+            color: #00FF00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        
+        #muteBtn:hover {
+            background: rgba(0, 255, 0, 0.2);
+        }
+        
+        #muteBtn.muted {
+            background: rgba(255, 0, 0, 0.2);
+            border-color: #FF0000;
+            color: #FF0000;
         }
         
         @media (max-width: 768px) {
@@ -206,7 +241,11 @@
         
         <div id="pauseBtn" class="control-btn">⏸</div>
         
-        <div id="versionLabel">v2.0 Mobile</div>
+        <div id="audioControls">
+            <div id="muteBtn">🔊</div>
+        </div>
+        
+        <div id="versionLabel">v3.0 Mobile & Sound<br><div style="text-align: right;">Leo. H.</div></div>
     </div>
 
     <script>
@@ -241,6 +280,218 @@
             right: false,
             shoot: false
         };
+        
+        // Audio system
+        class AudioManager {
+            constructor() {
+                this.sounds = {};
+                this.isMuted = false;
+                this.masterVolume = 0.3;
+                this.musicVolume = 0.2;
+                this.initAudio();
+            }
+            
+            initAudio() {
+                // Create audio contexts and oscillators for retro sounds
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Background music
+                this.createBackgroundMusic();
+                
+                // Sound effects
+                this.setupSoundEffects();
+            }
+            
+            createBackgroundMusic() {
+                // Simple background music loop
+                this.musicGain = this.audioContext.createGain();
+                this.musicGain.gain.value = this.musicVolume;
+                this.musicGain.connect(this.audioContext.destination);
+                
+                this.startBackgroundMusic();
+            }
+            
+            startBackgroundMusic() {
+                if (this.isMuted) return;
+                
+                const playMusic = () => {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    
+                    oscillator.connect(gain);
+                    gain.connect(this.musicGain);
+                    
+                    // Simple melody pattern
+                    const notes = [220, 246.94, 261.63, 293.66, 329.63, 246.94, 220, 196];
+                    let noteIndex = 0;
+                    
+                    oscillator.frequency.value = notes[noteIndex];
+                    oscillator.type = 'square';
+                    
+                    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.05, this.audioContext.currentTime + 0.1);
+                    gain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.8);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + 0.8);
+                    
+                    setTimeout(() => {
+                        if (!this.isMuted && !gameState.isGameOver) {
+                            playMusic();
+                        }
+                    }, 800);
+                };
+                
+                playMusic();
+            }
+            
+            setupSoundEffects() {
+                // All sound effects will be generated procedurally
+            }
+            
+            playShoot() {
+                if (this.isMuted) return;
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
+                oscillator.type = 'square';
+                
+                gain.gain.setValueAtTime(this.masterVolume * 0.3, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.1);
+            }
+            
+            playExplosion() {
+                if (this.isMuted) return;
+                
+                // Create explosion sound with noise
+                const bufferSize = this.audioContext.sampleRate * 0.3;
+                const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                const output = buffer.getChannelData(0);
+                
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+                }
+                
+                const noise = this.audioContext.createBufferSource();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                
+                noise.buffer = buffer;
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1000, this.audioContext.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(this.masterVolume * 0.4, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                
+                noise.start(this.audioContext.currentTime);
+                noise.stop(this.audioContext.currentTime + 0.3);
+            }
+            
+            playInvaderMove() {
+                if (this.isMuted) return;
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                oscillator.frequency.value = 150;
+                oscillator.type = 'square';
+                
+                gain.gain.setValueAtTime(this.masterVolume * 0.1, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.1);
+            }
+            
+            playGameOver() {
+                if (this.isMuted) return;
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(110, this.audioContext.currentTime + 1.5);
+                oscillator.type = 'triangle';
+                
+                gain.gain.setValueAtTime(this.masterVolume * 0.3, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 1.5);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 1.5);
+            }
+            
+            playLevelUp() {
+                if (this.isMuted) return;
+                
+                const notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
+                
+                notes.forEach((freq, index) => {
+                    setTimeout(() => {
+                        const oscillator = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+                        
+                        oscillator.connect(gain);
+                        gain.connect(this.audioContext.destination);
+                        
+                        oscillator.frequency.value = freq;
+                        oscillator.type = 'triangle';
+                        
+                        gain.gain.setValueAtTime(this.masterVolume * 0.2, this.audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                        
+                        oscillator.start(this.audioContext.currentTime);
+                        oscillator.stop(this.audioContext.currentTime + 0.3);
+                    }, index * 150);
+                });
+            }
+            
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                const muteBtn = document.getElementById('muteBtn');
+                
+                if (this.isMuted) {
+                    muteBtn.textContent = '🔇';
+                    muteBtn.classList.add('muted');
+                    // Stop background music
+                    if (this.musicGain) {
+                        this.musicGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    }
+                } else {
+                    muteBtn.textContent = '🔊';
+                    muteBtn.classList.remove('muted');
+                    // Resume background music
+                    if (this.musicGain) {
+                        this.musicGain.gain.setValueAtTime(this.musicVolume, this.audioContext.currentTime);
+                    }
+                    if (!gameState.isGameOver) {
+                        this.startBackgroundMusic();
+                    }
+                }
+            }
+        }
+        
+        // Initialize audio manager
+        let audioManager;
         
         // Game constants
         const GAME_WIDTH = canvas.width;
@@ -307,6 +558,7 @@
                     -BULLET_SPEED,
                     '#00FF00'
                 ));
+                audioManager.playShoot();
             }
             
             draw() {
@@ -632,6 +884,7 @@
         function nextLevel() {
             gameState.level++;
             createInvaders();
+            audioManager.playLevelUp();
             
             // Increase difficulty
             for (const invader of gameState.invaders) {
@@ -664,6 +917,7 @@
                         gameState.score += invader.points;
                         gameState.bullets.splice(i, 1);
                         gameState.invaders.splice(j, 1);
+                        audioManager.playExplosion();
                         updateUI();
                         break;
                     }
@@ -732,6 +986,7 @@
                 for (const invader of gameState.invaders) {
                     invader.y += INVADER_DROP_SPEED;
                 }
+                audioManager.playInvaderMove();
             } else {
                 for (const invader of gameState.invaders) {
                     invader.x += gameState.invaderDirection * INVADER_SPEED;
@@ -742,6 +997,7 @@
         function gameOver() {
             gameState.isGameOver = true;
             document.getElementById('gameOver').style.display = 'block';
+            audioManager.playGameOver();
         }
         
         function resetGame() {
@@ -885,8 +1141,20 @@
                 gameState.isPaused = !gameState.isPaused;
             });
             
+            // Mute button
+            const muteBtn = document.getElementById('muteBtn');
+            muteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                audioManager.toggleMute();
+            });
+            
+            muteBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                audioManager.toggleMute();
+            });
+            
             // Prevent context menu on long press
-            [leftBtn, rightBtn, shootBtn, pauseBtn].forEach(btn => {
+            [leftBtn, rightBtn, shootBtn, pauseBtn, muteBtn].forEach(btn => {
                 btn.addEventListener('contextmenu', (e) => e.preventDefault());
             });
         }
@@ -901,11 +1169,50 @@
             e.preventDefault();
         }, { passive: false });
         
-        // Initialize and start game
-        setupCanvas();
-        setupMobileControls();
-        initGame();
-        gameLoop();
+        // Initialize audio and start game
+        function startGame() {
+            try {
+                audioManager = new AudioManager();
+            } catch (error) {
+                console.log('Audio not supported, continuing without sound');
+                // Create a dummy audio manager for browsers that don't support Web Audio API
+                audioManager = {
+                    playShoot: () => {},
+                    playExplosion: () => {},
+                    playInvaderMove: () => {},
+                    playGameOver: () => {},
+                    playLevelUp: () => {},
+                    toggleMute: () => {}
+                };
+            }
+            
+            setupCanvas();
+            setupMobileControls();
+            initGame();
+            gameLoop();
+        }
+        
+        // Handle audio context initialization (required for user interaction)
+        let gameStarted = false;
+        
+        function initAudioAndStartGame() {
+            if (!gameStarted) {
+                gameStarted = true;
+                startGame();
+            }
+        }
+        
+        // Start game on user interaction (required for audio context)
+        document.addEventListener('click', initAudioAndStartGame);
+        document.addEventListener('touchstart', initAudioAndStartGame);
+        document.addEventListener('keydown', initAudioAndStartGame);
+        
+        // Fallback: start game after a short delay if no interaction
+        setTimeout(() => {
+            if (!gameStarted) {
+                startGame();
+            }
+        }, 1000);
     </script>
 </body>
 </html>
