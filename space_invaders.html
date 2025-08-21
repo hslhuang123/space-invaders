@@ -230,7 +230,7 @@
             <div id="restartInstruction">Press SPACE to restart</div>
         </div>
         <div id="instructions">
-            Use ← → arrows to move • SPACE to shoot • ESC to pause
+            Use ← → arrows to move • SPACE to shoot • ESC to pause • Click 🔊 to mute
         </div>
         
         <div id="mobileControls">
@@ -496,10 +496,10 @@
         // Game constants
         const GAME_WIDTH = canvas.width;
         const GAME_HEIGHT = canvas.height;
-        const PLAYER_SPEED = 5;
-        const BULLET_SPEED = 7;
-        const INVADER_SPEED = 1;
-        const INVADER_DROP_SPEED = 20;
+        const PLAYER_SPEED = 4.5;
+        const BULLET_SPEED = 6.5;
+        const INVADER_SPEED = 0.7;
+        const INVADER_DROP_SPEED = 18;
         
         // Game state
         let gameState = {
@@ -517,7 +517,8 @@
             invaderDirection: 1,
             invaderDropTimer: 0,
             shootCooldown: 0,
-            invaderShootTimer: 0
+            invaderShootTimer: 0,
+            currentInvaderSpeed: INVADER_SPEED
         };
         
         // Input handling
@@ -890,6 +891,9 @@
             for (const invader of gameState.invaders) {
                 invader.y += 20;
             }
+            
+            // Increase invader speed progressively each level
+            gameState.currentInvaderSpeed = INVADER_SPEED + (gameState.level - 1) * 0.3;
         }
         
         function checkCollisions() {
@@ -989,7 +993,7 @@
                 audioManager.playInvaderMove();
             } else {
                 for (const invader of gameState.invaders) {
-                    invader.x += gameState.invaderDirection * INVADER_SPEED;
+                    invader.x += gameState.invaderDirection * gameState.currentInvaderSpeed;
                 }
             }
         }
@@ -1004,6 +1008,7 @@
             gameState.score = 0;
             gameState.lives = 3;
             gameState.level = 1;
+            gameState.currentInvaderSpeed = INVADER_SPEED;
             document.getElementById('gameOver').style.display = 'none';
             initGame();
         }
@@ -1141,16 +1146,25 @@
                 gameState.isPaused = !gameState.isPaused;
             });
             
+            pauseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                gameState.isPaused = !gameState.isPaused;
+            });
+            
             // Mute button
             const muteBtn = document.getElementById('muteBtn');
             muteBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                audioManager.toggleMute();
+                if (audioManager && audioManager.toggleMute) {
+                    audioManager.toggleMute();
+                }
             });
             
             muteBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                audioManager.toggleMute();
+                if (audioManager && audioManager.toggleMute) {
+                    audioManager.toggleMute();
+                }
             });
             
             // Prevent context menu on long press
@@ -1182,7 +1196,16 @@
                     playInvaderMove: () => {},
                     playGameOver: () => {},
                     playLevelUp: () => {},
-                    toggleMute: () => {}
+                    toggleMute: () => {
+                        const muteBtn = document.getElementById('muteBtn');
+                        if (muteBtn.textContent === '🔊') {
+                            muteBtn.textContent = '🔇';
+                            muteBtn.classList.add('muted');
+                        } else {
+                            muteBtn.textContent = '🔊';
+                            muteBtn.classList.remove('muted');
+                        }
+                    }
                 };
             }
             
