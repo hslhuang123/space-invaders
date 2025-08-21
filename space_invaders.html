@@ -1140,63 +1140,46 @@
                 keys[' '] = false;
             });
             
-            // Pause button
-            let pauseTouchStarted = false;
+            // Pause button - iPhone compatible
+            function togglePause() {
+                gameState.isPaused = !gameState.isPaused;
+            }
             
+            // Use both touch and click events for maximum compatibility
             pauseBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                pauseTouchStarted = true;
-            });
+                togglePause();
+            }, { passive: false });
             
-            pauseBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (pauseTouchStarted) {
-                    gameState.isPaused = !gameState.isPaused;
-                    pauseTouchStarted = false;
-                }
-            });
-            
-            pauseBtn.addEventListener('touchcancel', (e) => {
-                pauseTouchStarted = false;
-            });
-            
+            // Fallback for desktop
             pauseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (!isMobile) {
-                    gameState.isPaused = !gameState.isPaused;
-                }
+                e.stopPropagation();
+                togglePause();
             });
             
-            // Mute button
+            // Mute button - iPhone compatible
             const muteBtn = document.getElementById('muteBtn');
-            let muteTouchStarted = false;
             
+            function toggleMute() {
+                if (audioManager && audioManager.toggleMute) {
+                    audioManager.toggleMute();
+                }
+            }
+            
+            // Use both touch and click events for maximum compatibility
             muteBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                muteTouchStarted = true;
-            });
+                toggleMute();
+            }, { passive: false });
             
-            muteBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (muteTouchStarted && audioManager && audioManager.toggleMute) {
-                    audioManager.toggleMute();
-                    muteTouchStarted = false;
-                }
-            });
-            
-            muteBtn.addEventListener('touchcancel', (e) => {
-                muteTouchStarted = false;
-            });
-            
+            // Fallback for desktop
             muteBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (!isMobile && audioManager && audioManager.toggleMute) {
-                    audioManager.toggleMute();
-                }
+                e.stopPropagation();
+                toggleMute();
             });
             
             // Prevent context menu on long press
