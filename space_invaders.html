@@ -245,7 +245,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v3.2 Mobile & Sound<br><div style="text-align: right;">Hector H.</div></div>
+        <div id="versionLabel">v3.3 Mobile & Sound<br><div style="text-align: right;">Hector H.</div></div>
     </div>
 
     <script>
@@ -401,7 +401,7 @@
                 noise.stop(this.audioContext.currentTime + 0.3);
             }
             
-            playInvaderMove() {
+            playInvaderMove(dropCount = 0) {
                 if (this.isMuted) return;
                 
                 const oscillator = this.audioContext.createOscillator();
@@ -410,10 +410,25 @@
                 oscillator.connect(gain);
                 gain.connect(this.audioContext.destination);
                 
-                oscillator.frequency.value = 150;
+                // Calculate volume based on drop count
+                let volumeMultiplier;
+                if (dropCount < 8) {
+                    // Soft volume before level 8, gradually increasing
+                    volumeMultiplier = 0.02 + (dropCount * 0.01); // Starts at 0.02, increases by 0.01 each drop
+                } else {
+                    // More intense volume after level 8, continuing to increase
+                    volumeMultiplier = 0.1 + ((dropCount - 8) * 0.02); // Starts at 0.1, increases by 0.02 each drop
+                    volumeMultiplier = Math.min(volumeMultiplier, 0.3); // Cap at 0.3
+                }
+                
+                // Also increase frequency slightly with more drops for tension
+                const baseFreq = 150;
+                const frequency = baseFreq + (dropCount * 5); // Increase pitch with drops
+                
+                oscillator.frequency.value = frequency;
                 oscillator.type = 'square';
                 
-                gain.gain.setValueAtTime(this.masterVolume * 0.1, this.audioContext.currentTime);
+                gain.gain.setValueAtTime(this.masterVolume * volumeMultiplier, this.audioContext.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
                 
                 oscillator.start(this.audioContext.currentTime);
@@ -518,7 +533,8 @@
             invaderDropTimer: 0,
             shootCooldown: 0,
             invaderShootTimer: 0,
-            currentInvaderSpeed: INVADER_SPEED
+            currentInvaderSpeed: INVADER_SPEED,
+            invaderDropCount: 0
         };
         
         // Input handling
@@ -844,6 +860,7 @@
             gameState.isPaused = false;
             gameState.invaderDirection = 1;
             gameState.invaderDropTimer = 0;
+            gameState.invaderDropCount = 0; // Reset drop count
             
             createInvaders();
             createBarriers();
@@ -987,10 +1004,11 @@
             
             if (shouldDrop) {
                 gameState.invaderDirection *= -1;
+                gameState.invaderDropCount++; // Increment drop count
                 for (const invader of gameState.invaders) {
                     invader.y += INVADER_DROP_SPEED;
                 }
-                audioManager.playInvaderMove();
+                audioManager.playInvaderMove(gameState.invaderDropCount);
             } else {
                 for (const invader of gameState.invaders) {
                     invader.x += gameState.invaderDirection * gameState.currentInvaderSpeed;
@@ -1009,6 +1027,7 @@
             gameState.lives = 3;
             gameState.level = 1;
             gameState.currentInvaderSpeed = INVADER_SPEED;
+            gameState.invaderDropCount = 0; // Reset drop count
             document.getElementById('gameOver').style.display = 'none';
             initGame();
         }
@@ -1252,7 +1271,7 @@
                 audioManager = {
                     playShoot: () => {},
                     playExplosion: () => {},
-                    playInvaderMove: () => {},
+                    playInvaderMove: (dropCount) => {},
                     playGameOver: () => {},
                     playLevelUp: () => {},
                     toggleMute: () => {
