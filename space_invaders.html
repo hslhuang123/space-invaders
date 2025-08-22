@@ -400,7 +400,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v5.7 Mobile & Sound<br><div style="text-align: right;"><span style="color: lightblue;">时力 <sup>©</sup></span></div></div>
+        <div id="versionLabel">v5.9 Mobile & Sound<br><div style="text-align: right;"><span style="color: lightblue;">时力 <sup>©</sup></span></div></div>
     </div>
 
     <script>
@@ -799,33 +799,90 @@
             playPlayerHit() {
                 if (this.isMuted || !this.ensureAudioContextActive()) return;
                 
-                // Create a distinctive "hit" sound - quick downward chirp
-                const oscillator = this.audioContext.createOscillator();
+                // Create a more realistic kitten meow sound
+                const oscillator1 = this.audioContext.createOscillator();
+                const oscillator2 = this.audioContext.createOscillator();
+                const oscillator3 = this.audioContext.createOscillator();
                 const gain = this.audioContext.createGain();
                 const filter = this.audioContext.createBiquadFilter();
                 
-                oscillator.connect(filter);
+                oscillator1.connect(filter);
+                oscillator2.connect(filter);
+                oscillator3.connect(filter);
                 filter.connect(gain);
                 gain.connect(this.audioContext.destination);
                 
-                // Triangle wave for a softer but clear tone
-                oscillator.type = 'triangle';
+                // Mix of waveforms for more organic kitten sound
+                oscillator1.type = 'sine';      // Main voice
+                oscillator2.type = 'triangle';  // Adds texture
+                oscillator3.type = 'sawtooth';  // Adds character
                 
-                // Quick downward frequency sweep - like a "bonk" or "ding"
-                oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(300, this.audioContext.currentTime + 0.2);
+                // More accurate "MEOW" pattern with distinct syllables
+                // "MEE" part - rising pitch
+                oscillator1.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                oscillator1.frequency.linearRampToValueAtTime(1000, this.audioContext.currentTime + 0.15);
+                // "OW" part - falling pitch  
+                oscillator1.frequency.linearRampToValueAtTime(600, this.audioContext.currentTime + 0.3);
+                oscillator1.frequency.linearRampToValueAtTime(400, this.audioContext.currentTime + 0.6);
                 
-                // Light filtering for smoothness
-                filter.type = 'lowpass';
-                filter.frequency.value = 1200;
-                filter.Q.value = 1;
+                // Harmonic frequencies for richer sound
+                oscillator2.frequency.setValueAtTime(1200, this.audioContext.currentTime);
+                oscillator2.frequency.linearRampToValueAtTime(1500, this.audioContext.currentTime + 0.15);
+                oscillator2.frequency.linearRampToValueAtTime(900, this.audioContext.currentTime + 0.3);
+                oscillator2.frequency.linearRampToValueAtTime(600, this.audioContext.currentTime + 0.6);
                 
-                // Quick envelope - noticeable but brief
-                gain.gain.setValueAtTime(this.masterVolume * 0.5, this.audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.25);
+                // Lower harmonic for body
+                oscillator3.frequency.setValueAtTime(400, this.audioContext.currentTime);
+                oscillator3.frequency.linearRampToValueAtTime(500, this.audioContext.currentTime + 0.15);
+                oscillator3.frequency.linearRampToValueAtTime(300, this.audioContext.currentTime + 0.3);
+                oscillator3.frequency.linearRampToValueAtTime(200, this.audioContext.currentTime + 0.6);
                 
-                oscillator.start(this.audioContext.currentTime);
-                oscillator.stop(this.audioContext.currentTime + 0.25);
+                // Filter sweeps for kitten vocal tract simulation
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1200, this.audioContext.currentTime);
+                filter.frequency.linearRampToValueAtTime(1800, this.audioContext.currentTime + 0.15);
+                filter.frequency.linearRampToValueAtTime(800, this.audioContext.currentTime + 0.6);
+                filter.Q.value = 4;
+                
+                // Volume gains for each oscillator
+                const gain1 = this.audioContext.createGain();
+                const gain2 = this.audioContext.createGain();
+                const gain3 = this.audioContext.createGain();
+                
+                oscillator1.disconnect();
+                oscillator2.disconnect();
+                oscillator3.disconnect();
+                
+                oscillator1.connect(gain1);
+                oscillator2.connect(gain2);
+                oscillator3.connect(gain3);
+                gain1.connect(filter);
+                gain2.connect(filter);
+                gain3.connect(filter);
+                
+                // Different volume levels for realism
+                gain1.gain.value = 0.6; // Main voice
+                gain2.gain.value = 0.3; // Harmonic
+                gain3.gain.value = 0.2; // Body
+                
+                // Meow envelope - quick start, sustain, tail off
+                gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+                gain.gain.linearRampToValueAtTime(this.masterVolume * 0.5, this.audioContext.currentTime + 0.05);
+                gain.gain.linearRampToValueAtTime(this.masterVolume * 0.4, this.audioContext.currentTime + 0.2);
+                gain.gain.linearRampToValueAtTime(this.masterVolume * 0.2, this.audioContext.currentTime + 0.4);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.7);
+                
+                const startTime = this.audioContext.currentTime;
+                const duration = 0.7;
+                
+                oscillator1.start(startTime);
+                oscillator1.stop(startTime + duration);
+                
+                oscillator2.start(startTime);
+                oscillator2.stop(startTime + duration);
+                
+                oscillator3.start(startTime);
+                oscillator3.stop(startTime + duration);
             }
             
             toggleMute() {
