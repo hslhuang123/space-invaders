@@ -399,7 +399,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v4.8 Mobile & Sound<br><div style="text-align: right;">时力</div></div>
+        <div id="versionLabel">v4.9 Mobile & Sound<br><div style="text-align: right;"><span style="color: lightblue;">时力 <sup>©</sup></span></div></div>
     </div>
 
     <script>
@@ -477,6 +477,11 @@
                     this.audioContext.resume().then(() => {
                         console.log('Audio context resumed');
                         this.audioContextResumed = true;
+                        
+                        // Force audio routing to speakers on mobile
+                        if (isMobile) {
+                            this.forceSpeakerOutput();
+                        }
                     });
                 }
                 
@@ -485,6 +490,33 @@
                     this.audioContext.destination.channelCount = 2;
                     this.audioContext.destination.channelCountMode = 'explicit';
                     this.audioContext.destination.channelInterpretation = 'speakers';
+                }
+                
+                // Additional mobile audio activation
+                if (isMobile) {
+                    this.forceSpeakerOutput();
+                }
+            }
+            
+            forceSpeakerOutput() {
+                // Create a silent audio to force speaker routing
+                try {
+                    const silentBuffer = this.audioContext.createBuffer(1, 1, this.audioContext.sampleRate);
+                    const silentSource = this.audioContext.createBufferSource();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    silentSource.buffer = silentBuffer;
+                    gainNode.gain.value = 0.01; // Very quiet but not silent
+                    
+                    silentSource.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    silentSource.start();
+                    silentSource.stop(this.audioContext.currentTime + 0.1);
+                    
+                    console.log('Speaker routing forced');
+                } catch (e) {
+                    console.log('Could not force speaker routing:', e);
                 }
             }
             
@@ -1568,6 +1600,17 @@
             
             try {
                 audioManager = new AudioManager();
+                
+                // Mobile audio notification
+                if (isMobile) {
+                    setTimeout(() => {
+                        if (audioManager && !audioManager.isMuted) {
+                            console.log('Mobile audio initialized - make sure device volume is up and not in silent mode');
+                            // Try to play a test sound to activate speakers
+                            audioManager.playShoot();
+                        }
+                    }, 1000);
+                }
             } catch (error) {
                 console.log('Audio not supported, continuing without sound');
                 // Create a dummy audio manager for browsers that don't support Web Audio API
