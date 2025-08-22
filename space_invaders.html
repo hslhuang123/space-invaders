@@ -378,6 +378,7 @@
             <div>Score: <span id="score">0</span></div>
             <div>Lives: <span id="lives">3</span></div>
             <div>Level: <span id="level">1</span></div>
+            <div>Shots: <span id="shots">0</span></div>
         </div>
         <div id="gameOver">
             <div>GAME OVER</div>
@@ -399,7 +400,7 @@
             <div id="muteBtn">🔊</div>
         </div>
         
-        <div id="versionLabel">v4.9 Mobile & Sound<br><div style="text-align: right;"><span style="color: lightblue;">时力 <sup>©</sup></span></div></div>
+        <div id="versionLabel">v5.7 Mobile & Sound<br><div style="text-align: right;"><span style="color: lightblue;">时力 <sup>©</sup></span></div></div>
     </div>
 
     <script>
@@ -450,9 +451,9 @@
             constructor() {
                 this.sounds = {};
                 this.isMuted = false;
-                // Increase volume for mobile speakers
-                this.masterVolume = isMobile ? 0.6 : 0.3;
-                this.musicVolume = isMobile ? 0.4 : 0.2;
+                // Increase volume for mobile speakers, ensure PC volume is adequate
+                this.masterVolume = isMobile ? 0.6 : 0.5;
+                this.musicVolume = isMobile ? 0.4 : 0.3;
                 this.lastVolumeUpdate = 0;
                 this.audioContextResumed = false;
                 this.initAudio();
@@ -462,8 +463,23 @@
                 // Create audio contexts and oscillators for retro sounds
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
-                // Force audio context to resume (required for mobile)
+                // Force audio context to resume (required for mobile and some desktop browsers)
                 this.resumeAudioContext();
+                
+                // Ensure audio context is active for PC
+                if (!isMobile && this.audioContext.state === 'suspended') {
+                    // Create a user interaction promise for PC
+                    const activateAudio = () => {
+                        this.audioContext.resume().then(() => {
+                            console.log('PC Audio context activated');
+                            this.audioContextResumed = true;
+                        });
+                        document.removeEventListener('click', activateAudio);
+                        document.removeEventListener('keydown', activateAudio);
+                    };
+                    document.addEventListener('click', activateAudio);
+                    document.addEventListener('keydown', activateAudio);
+                }
                 
                 // Background music
                 this.createBackgroundMusic();
@@ -523,8 +539,20 @@
             ensureAudioContextActive() {
                 if (this.audioContext.state === 'suspended') {
                     this.resumeAudioContext();
+                    // For PC, try immediate activation
+                    if (!isMobile) {
+                        try {
+                            this.audioContext.resume();
+                        } catch (e) {
+                            console.log('Could not immediately resume audio context:', e);
+                        }
+                    }
                 }
-                return this.audioContext.state === 'running';
+                const isActive = this.audioContext.state === 'running';
+                if (!isActive) {
+                    console.log('Audio context not active, state:', this.audioContext.state);
+                }
+                return isActive;
             }
             
             createBackgroundMusic() {
@@ -768,6 +796,38 @@
                 });
             }
             
+            playPlayerHit() {
+                if (this.isMuted || !this.ensureAudioContextActive()) return;
+                
+                // Create a distinctive "hit" sound - quick downward chirp
+                const oscillator = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                
+                oscillator.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                // Triangle wave for a softer but clear tone
+                oscillator.type = 'triangle';
+                
+                // Quick downward frequency sweep - like a "bonk" or "ding"
+                oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(300, this.audioContext.currentTime + 0.2);
+                
+                // Light filtering for smoothness
+                filter.type = 'lowpass';
+                filter.frequency.value = 1200;
+                filter.Q.value = 1;
+                
+                // Quick envelope - noticeable but brief
+                gain.gain.setValueAtTime(this.masterVolume * 0.5, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.25);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.25);
+            }
+            
             toggleMute() {
                 this.isMuted = !this.isMuted;
                 const muteBtn = document.getElementById('muteBtn');
@@ -815,6 +875,7 @@
             score: 0,
             lives: 3,
             level: 1,
+            shots: 0,
             isGameOver: false,
             isPaused: false,
             invaderDirection: 1,
@@ -866,6 +927,8 @@
                     -BULLET_SPEED,
                     '#00FF00'
                 ));
+                gameState.shots++;
+                updateUI();
                 audioManager.playShoot();
             }
             
@@ -1153,6 +1216,7 @@
             gameState.invaderDropTimer = 0;
             gameState.invaderDropCount = 0; // Reset drop count
             
+            initStars(); // Initialize galaxy background
             createInvaders();
             createBarriers();
             updateUI();
@@ -1247,6 +1311,7 @@
                     
                     gameState.invaderBullets.splice(i, 1);
                     gameState.lives--;
+                    audioManager.playPlayerHit(); // Play hit sound
                     updateUI();
                     
                     if (gameState.lives <= 0) {
@@ -1332,6 +1397,7 @@
             gameState.score = 0;
             gameState.lives = 3;
             gameState.level = 1;
+            gameState.shots = 0;
             gameState.currentInvaderSpeed = INVADER_SPEED;
             gameState.invaderDropCount = 0; // Reset drop count
             document.getElementById('gameOver').style.display = 'none';
@@ -1342,8 +1408,147 @@
             document.getElementById('score').textContent = gameState.score;
             document.getElementById('lives').textContent = gameState.lives;
             document.getElementById('level').textContent = gameState.level;
+            document.getElementById('shots').textContent = gameState.shots;
         }
         
+        // Galaxy background stars and shooting stars
+        let stars = [];
+        let shootingStars = [];
+        
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * GAME_HEIGHT,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random() * 0.8 + 0.2,
+                    twinkle: Math.random() * 0.02 + 0.005,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+            shootingStars = [];
+        }
+        
+        function createShootingStar() {
+            // Random chance to create a shooting star (very rare)
+            if (Math.random() < 0.002) { // 0.2% chance per frame
+                const angle = Math.random() * Math.PI / 3 + Math.PI / 6; // 30-60 degrees
+                const speed = Math.random() * 3 + 2; // 2-5 pixels per frame
+                const length = Math.random() * 40 + 20; // 20-60 pixel trail
+                
+                shootingStars.push({
+                    x: -50, // Start off-screen left
+                    y: Math.random() * GAME_HEIGHT * 0.6, // Top 60% of screen
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    length: length,
+                    life: 1.0,
+                    decay: Math.random() * 0.02 + 0.01 // How fast it fades
+                });
+            }
+        }
+        
+        function updateShootingStars() {
+            for (let i = shootingStars.length - 1; i >= 0; i--) {
+                const star = shootingStars[i];
+                star.x += star.vx;
+                star.y += star.vy;
+                star.life -= star.decay;
+                
+                // Remove if faded out or off screen
+                if (star.life <= 0 || star.x > GAME_WIDTH + 100 || star.y > GAME_HEIGHT + 100) {
+                    shootingStars.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawShootingStars() {
+            shootingStars.forEach(star => {
+                if (star.life > 0) {
+                    const gradient = ctx.createLinearGradient(
+                        star.x, star.y,
+                        star.x - star.vx * star.length / 5, star.y - star.vy * star.length / 5
+                    );
+                    
+                    const alpha = star.life;
+                    gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                    gradient.addColorStop(0.3, `rgba(200, 200, 255, ${alpha * 0.8})`);
+                    gradient.addColorStop(1, `rgba(150, 150, 255, 0)`);
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 2;
+                    ctx.lineCap = 'round';
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(star.x, star.y);
+                    ctx.lineTo(
+                        star.x - star.vx * star.length / 5,
+                        star.y - star.vy * star.length / 5
+                    );
+                    ctx.stroke();
+                }
+            });
+        }
+        
+        function drawGalaxyBackground() {
+            // Clear with deep space black
+            ctx.fillStyle = '#000011';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            // Draw nebula effect
+            const gradient = ctx.createRadialGradient(
+                GAME_WIDTH * 0.3, GAME_HEIGHT * 0.2, 0,
+                GAME_WIDTH * 0.3, GAME_HEIGHT * 0.2, GAME_WIDTH * 0.8
+            );
+            gradient.addColorStop(0, 'rgba(64, 0, 128, 0.15)'); // Purple center
+            gradient.addColorStop(0.3, 'rgba(32, 0, 64, 0.08)');
+            gradient.addColorStop(0.6, 'rgba(16, 0, 32, 0.04)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            // Draw another nebula
+            const gradient2 = ctx.createRadialGradient(
+                GAME_WIDTH * 0.7, GAME_HEIGHT * 0.8, 0,
+                GAME_WIDTH * 0.7, GAME_HEIGHT * 0.8, GAME_WIDTH * 0.6
+            );
+            gradient2.addColorStop(0, 'rgba(0, 64, 128, 0.1)'); // Blue center
+            gradient2.addColorStop(0.4, 'rgba(0, 32, 64, 0.06)');
+            gradient2.addColorStop(0.8, 'rgba(0, 16, 32, 0.03)');
+            gradient2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient2;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            // Draw shooting stars first (behind regular stars)
+            drawShootingStars();
+            
+            // Draw twinkling stars
+            stars.forEach(star => {
+                star.phase += star.twinkle;
+                const twinkle = Math.sin(star.phase) * 0.3 + 0.7;
+                const alpha = star.brightness * twinkle;
+                
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add star glow for bigger stars
+                if (star.size > 1.5) {
+                    ctx.globalAlpha = alpha * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            ctx.globalAlpha = 1;
+        }
+
         // Game loop
         let gameLoopRunning = false;
         function gameLoop() {
@@ -1364,6 +1569,10 @@
                 // Update particles
                 gameState.particles = gameState.particles.filter(particle => particle.update());
                 
+                // Update shooting stars
+                createShootingStar();
+                updateShootingStars();
+                
                 // Update background music volume based on invader proximity
                 if (gameState.invaders.length > 0 && gameState.player) {
                     // Find the bottom-most invader (closest to player)
@@ -1380,9 +1589,8 @@
                 }
             }
             
-            // Draw
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            // Draw galaxy background
+            drawGalaxyBackground();
             
             if (!gameState.isGameOver) {
                 gameState.player.draw();
@@ -1601,7 +1809,7 @@
             try {
                 audioManager = new AudioManager();
                 
-                // Mobile audio notification
+                // Audio notification and testing
                 if (isMobile) {
                     setTimeout(() => {
                         if (audioManager && !audioManager.isMuted) {
@@ -1610,6 +1818,17 @@
                             audioManager.playShoot();
                         }
                     }, 1000);
+                } else {
+                    // PC audio testing
+                    setTimeout(() => {
+                        if (audioManager && !audioManager.isMuted) {
+                            console.log('PC audio initialized - audio context state:', audioManager.audioContext.state);
+                            // Test PC audio after a short delay
+                            if (audioManager.audioContext.state === 'running') {
+                                console.log('PC audio ready - you should hear sound effects');
+                            }
+                        }
+                    }, 500);
                 }
             } catch (error) {
                 console.log('Audio not supported, continuing without sound');
@@ -1620,6 +1839,7 @@
                     playInvaderMove: (dropCount, closestInvaderY, playerY) => {},
                     playGameOver: () => {},
                     playLevelUp: () => {},
+                    playPlayerHit: () => {},
                     updateBackgroundMusicVolume: (bottomMostInvaderY, playerY) => {},
                     toggleMute: () => {
                         const muteBtn = document.getElementById('muteBtn');
